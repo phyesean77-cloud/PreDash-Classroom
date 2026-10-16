@@ -46,11 +46,9 @@ def _fetch_one(name, symbol):
             current = valid_closes[-1]
         current = float(current)
 
-        previous = meta.get("chartPreviousClose")
-        if previous is None or float(previous) <= 0:
-            previous = meta.get("previousClose")
-        if previous is None or float(previous) <= 0:
-            previous = valid_closes[-2] if len(valid_closes) >= 2 else None
+        # With a multi-day daily chart, the penultimate close is the
+        # previous trading session even when today is still in progress.
+        previous = valid_closes[-2] if len(valid_closes) >= 2 else None
         if previous is None or float(previous) <= 0:
             raise ValueError
         previous = float(previous)
