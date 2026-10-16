@@ -36,6 +36,7 @@ price_trend=market_module.price_trend
 import predash.flow as flow_module
 flow_module=importlib.reload(flow_module)
 from predash.dashboard import overview, latest_held_buy
+from predash.indices import fetch_indices, IndexQuoteError
 from predash.visuals import compact_dashboard
 from predash.decision import comparison, brief, export_review, EvidenceError
 from predash.customs import exports, CustomsError
@@ -290,6 +291,42 @@ if page in ('오늘의 점검','내 계좌','관심종목','투자 근거'):
             st.caption('Cboe 일별 종가 · S&P 500 옵션 기대 변동성, 한국시장 손실 확률 아님. PreDash 기준: 15 미만 낮음 / 15~20 보통 / 20~30 주의 / 30 이상 높음. 실시간 아님 · 30분 캐시 · 눈금 범위 0~50, 50 이상 오른쪽 끝 표시.')
             with st.expander('VIX 최근 흐름'):st.line_chart(v['rows'],x='날짜',y='VIX',height=180)
         except MacroError as exc:st.info(str(exc))
+
+@st.cache_data(ttl=60, show_spinner=False)
+def cached_korean_indices():
+    return fetch_indices()
+
+if page == '오늘의 점검':
+    st.title('투자 대시보드')
+    st.html('<div class="pd-intro">국내 증시의 현재 수준과 전 거래일 대비 변화를 빠르게 확인하세요.</div>')
+    title_col, refresh_col = st.columns([4, 1], vertical_alignment='center')
+    with title_col:
+        st.subheader('국내 증시 · 코스피 / 코스닥')
+    with refresh_col:
+        if st.button('지수 새로고침', key='refresh_korean_indices', type='primary', use_container_width=True):
+            cached_korean_indices.clear()
+    try:
+        index_rows = cached_korean_indices()
+        cards = []
+        for row in index_rows:
+            change = row['change']
+            color = '#b63f3f' if change > 0 else '#2465a2' if change < 0 else '#6b746d'
+            lamp_class = 'up' if change > 0 else 'down' if change < 0 else 'flat'
+            arrow = '▲' if change > 0 else '▼' if change < 0 else '—'
+            status = '상승' if change > 0 else '하락' if change < 0 else '보합'
+            cards.append(
+                f"<div><strong><span class='pd-lamp {lamp_class}' style='background:{color};box-shadow:0 0 0 4px #eef0e7'></span>"
+                f"{html.escape(row['name'])} · {status}</strong>"
+                f"<span class='pd-index-value'>{row['value']:,.2f}</span>"
+                f"<span class='details' style='color:{color};font-weight:750'>{arrow} {change:+,.2f}p ({row['change_pct']:+.2f}%)</span>"
+                f"<small>전 거래일 대비 · 이전 기준값 {row['previous']:,.2f}</small>"
+                f"<small>기준 시각 {html.escape(row['date'])} {html.escape(row['time'])} KST</small></div>"
+            )
+        st.html('<div class="pd-market">' + ''.join(cards) + '</div>')
+        st.caption('출처: Yahoo Finance · 시세는 제공사 기준이며 지연될 수 있습니다. 장 마감·휴장 시 마지막 제공값이 표시됩니다. 등락 포인트와 등락률은 이전 기준 종가 대비 계산값입니다.')
+    except IndexQuoteError as exc:
+        st.warning(str(exc))
+        st.caption('시세를 임의로 채우지 않습니다. 연결 상태를 확인한 뒤 지수 새로고침을 눌러주세요.')
 
 def allocation_panel(snapshot):
     positions=sorted(snapshot.get('positions',[]),key=lambda p:-p['weight'])
