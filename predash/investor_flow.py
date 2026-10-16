@@ -96,9 +96,12 @@ def fetch_investor_flow(asof=None, lookback_days=12):
     end = asof.strftime("%Y%m%d")
     rows = [_fetch_market(label, market, start, end) for label, market in MARKETS]
     if len({row["date"] for row in rows}) != 1:
-        # The dashboard should not compare different dates as if they were simultaneous.
-        latest_date = min(row["date"] for row in rows)
-        rows = [row for row in rows if row["date"] == latest_date]
-        if len(rows) != 2:
+        # Re-query both markets through the earlier date to align the comparison.
+        common_end = min(row["date"] for row in rows).replace("-", "")
+        rows = [
+            _fetch_market(label, market, common_end, common_end)
+            for label, market in MARKETS
+        ]
+        if len({row["date"] for row in rows}) != 1:
             raise InvestorFlowError("코스피·코스닥의 공통 기준일을 찾지 못했습니다.")
     return rows
