@@ -1,47 +1,40 @@
-"""Classroom credentials are held only in the current Streamlit session."""
+"""Broker selection UI. Broker-specific account adapters are enabled only after verified API support."""
 import streamlit as st
-from predash.kis import KIS, BrokerError
+
+
+BROKERS = {
+    "KB증권": {
+        "status": "API 연동 준비 중",
+        "note": "공식 Open API 앱 키와 잔고 조회 규격을 확인한 뒤 연결 기능을 활성화합니다.",
+        "url": "https://openapi.kbsec.com/",
+    },
+    "미래에셋증권": {
+        "status": "공식 API 확인 필요",
+        "note": "개인 계좌 조회에 사용할 공식 API 및 접근 권한을 확인한 뒤 연결 기능을 활성화합니다.",
+        "url": "https://securities.miraeasset.com/",
+    },
+}
 
 
 def account_settings(mode=None):
-    settings = st.session_state.get('classroom_credentials', {})
-    selected = mode or settings.get('mode', 'demo')
-    if selected != settings.get('mode'):
-        return dict(mode=selected, key='', secret='', cano='', product='')
-    return dict(mode=selected, **{k: settings.get(k, '') for k in ('key','secret','cano','product')})
+    """Compatibility shape for existing dashboard code; no unsupported broker is treated as connected."""
+    selected = mode or st.session_state.get("selected_broker_mode", "real")
+    return dict(mode=selected, key="", secret="", cano="", product="",
+                broker=st.session_state.get("selected_broker", "KB증권"))
 
 
 def connection_form():
-    if st.session_state.pop('classroom_clear_inputs', False):
-        for key in ('class_key','class_secret','class_cano','class_product'):
-            st.session_state.pop(key, None)
-    st.subheader('내 증권사 계좌 연결')
-    st.caption('각자 Fork한 앱에서 본인 키를 입력하세요. 현재 접속 세션에서만 사용합니다.')
-    if st.session_state.get('classroom_credentials'):
-        st.success('계좌 연결됨 · ' + ('모의투자' if account_settings()['mode']=='demo' else '실전 조회'))
-        if st.button('계좌 연결 해제'):
-            authorized = st.session_state.get('authorized')
-            st.session_state.clear()
-            if authorized: st.session_state.authorized = True
-            st.rerun()
-        return
-    with st.form('classroom_connection'):
-        mode = st.radio('투자 환경', ['모의투자','실전 조회'], horizontal=True)
-        key = st.text_input('App Key', type='password', key='class_key')
-        secret = st.text_input('App Secret', type='password', key='class_secret')
-        cano = st.text_input('계좌번호 앞 8자리', type='password', max_chars=8, key='class_cano')
-        product = st.text_input('계좌번호 뒤 2자리', max_chars=2, key='class_product')
-        submitted = st.form_submit_button('연결 확인', type='primary', use_container_width=True)
-    if submitted:
-        settings = dict(mode='demo' if mode=='모의투자' else 'real',key=key.strip(),secret=secret.strip(),cano=cano.strip(),product=product.strip())
-        try:
-            client = KIS(settings=settings)
-            with st.spinner('잔고 조회 권한을 확인합니다…'):
-                client.balance()
-            st.session_state.classroom_credentials = settings
-            st.session_state['_kis_client_demo' if settings['mode']=='demo' else '_kis_client'] = client
-            st.session_state.classroom_clear_inputs = True
-            st.rerun()
-        except BrokerError as error:
-            st.error(str(error))
-    st.info('연결 해제와 로그아웃은 키·잔고·접속 중 실습 기록을 지웁니다. 필요한 기록은 먼저 백업하세요.')
+    st.subheader("내 증권사 계좌 연결")
+    st.caption("사용할 증권사를 선택하세요. 인증 및 잔고 조회 API 검증이 끝난 증권사만 실제 연결할 수 있습니다.")
+    names = list(BROKERS)
+    current = st.session_state.get("selected_broker", "KB증권")
+    selected = st.radio("증권사 선택", names, horizontal=True,
+                        index=names.index(current) if current in names else 0,
+                        key="selected_broker")
+    info = BROKERS[selected]
+    st.markdown(f"**연동 상태 · {info['status']}**")
+    st.write(info["note"])
+    st.link_button(f"{selected} 공식 사이트 / API 안내", info["url"], use_container_width=True)
+    if st.session_state.get("classroom_credentials"):
+        st.session_state.pop("classroom_credentials", None)
+    st.info("현재는 한국투자증권 계좌 연결을 사용하지 않습니다. KB증권·미래에셋증권의 실제 API 연동은 검증 후 활성화됩니다.")
