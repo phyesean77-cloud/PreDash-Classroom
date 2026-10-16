@@ -333,6 +333,41 @@ if page == '오늘의 점검':
         st.warning(str(exc))
         st.caption('시세를 임의로 채우지 않습니다. 연결 상태를 확인한 뒤 지수 새로고침을 눌러주세요.')
 
+    st.divider()
+    flow_left, flow_right = st.columns([4, 1], vertical_alignment='center')
+    with flow_left:
+        st.subheader('투자자별 매매동향 · 국내 투자자 vs 외국인')
+    with flow_right:
+        if st.button('수급 새로고침', key='refresh_investor_flow', use_container_width=True):
+            cached_investor_flow.clear()
+    try:
+        asof = datetime.now(ZoneInfo('Asia/Seoul')).date()
+        flow_rows = cached_investor_flow(asof)
+        display_rows = []
+        for row in flow_rows:
+            for label, prefix in [('국내 투자자', 'domestic'), ('외국인', 'foreign')]:
+                sell = row[prefix + '_sell'] / 100_000_000
+                buy = row[prefix + '_buy'] / 100_000_000
+                net = row[prefix + '_net'] / 100_000_000
+                display_rows.append({
+                    '시장': row['market'],
+                    '투자자': label,
+                    '매도금액 (억원)': f'{sell:,.0f}',
+                    '매수금액 (억원)': f'{buy:,.0f}',
+                    '순매수 (억원)': f'{net:+,.0f}',
+                    '수급 상태': '순매수' if net > 0 else '순매도' if net < 0 else '보합',
+                })
+        st.dataframe(display_rows, hide_index=True, use_container_width=True)
+        st.caption(
+            f"기준일 {flow_rows[0]['date']} · 단위: 억 원 · 순매수 = 매수금액 − 매도금액. "
+            "국내 투자자 = 개인 + 기관합계 + 기타법인, 외국인 = 외국인합계. "
+            "한국거래소 투자자별 일별 거래대금 집계이며 실시간 계좌 체결이 아닙니다. "
+            "당일 최종 수치는 장 마감 후 확정될 수 있습니다."
+        )
+    except InvestorFlowError as exc:
+        st.info(str(exc))
+        st.caption('수급 데이터가 확인되지 않으면 숫자를 임의로 표시하지 않습니다.')
+
 def allocation_panel(snapshot):
     positions=sorted(snapshot.get('positions',[]),key=lambda p:-p['weight'])
     rows=[]
