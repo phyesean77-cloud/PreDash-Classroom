@@ -794,8 +794,7 @@ elif page=='연결 설정':
     ]
 
     connected=sum(bool(api_key(key)) for _,_,key,_,_ in api_specs)
-    kis_connected=all(account_settings()[k] for k in ('key','secret','cano','product'))
-    st.html(f"<div class='pd-summary'><div><span>공공 API</span><strong>{connected}/4</strong><small>필요한 항목만 연결</small></div><div><span>증권사 KIS</span><strong>{'연결됨' if kis_connected else '미연결'}</strong><small>현재 세션 전용</small></div><div><span>저장 방식</span><strong>세션 보호</strong><small>로그아웃 시 입력 키 삭제</small></div></div>")
+    st.html(f"<div class='pd-summary'><div><span>공공 API</span><strong>{connected}/4</strong><small>필요한 항목만 연결</small></div><div><span>증권사 API</span><strong>연동 준비 중</strong><small>KB증권 · 미래에셋증권</small></div><div><span>저장 방식</span><strong>세션 보호</strong><small>로그아웃 시 입력 키 삭제</small></div></div>")
 
     st.subheader('01 · 공공 데이터 API')
     st.caption('수강 중에는 아래에서 바로 입력할 수 있습니다. 장기 사용은 본인 Streamlit Secrets에 저장하면 매번 다시 입력할 필요가 없습니다.')
@@ -846,24 +845,12 @@ CUSTOMS_API_KEY = "내 관세청 키"''',language='toml')
         st.write('Streamlit Community Cloud → 해당 앱 → Settings → Secrets에 붙여 넣고 Save 합니다.')
 
     st.divider()
-    st.subheader('02 · 한국투자증권 계좌')
-    st.caption('증권사 App Key·Secret·계좌번호는 Streamlit Secrets에 저장하지 않고 현재 접속 세션에서만 사용합니다.')
+    st.subheader('02 · 증권사 계좌 연결')
+    st.caption('한국투자증권 연결은 사용하지 않습니다. 아래에서 KB증권 또는 미래에셋증권을 선택하세요.')
     connection_form()
-    if kis_connected:
-        st.caption(f"현재 KIS 설정 · {'실전 조회' if account_settings()['mode']=='real' else '모의투자'} · 키와 계좌번호 원문은 표시하지 않습니다.")
-        if st.button('KIS 연결 진단 · 잔고 조회 권한 확인',type='primary',use_container_width=True):
-            try:
-                client=kis_client()
-                client.authorize()
-                st.success('1단계 · 증권사 토큰 발급 성공')
-                snapshot=client.balance()
-                st.success(f"2단계 · 국내주식 잔고 조회 성공 · 보유종목 {len(snapshot['positions'])}개")
-            except BrokerError as exc:
-                st.error(str(exc))
-    st.link_button('한국투자증권 API 신청','https://apiportal.koreainvestment.com/',use_container_width=True)
+    st.info('실제 계좌 잔고·체결 분석을 활성화하려면 각 증권사의 공식 인증 방식과 조회 API를 구현하고 검증해야 합니다. 현재는 연결 완료로 표시하지 않습니다.')
+    st.caption('API 키와 계좌번호를 GitHub 코드나 공개 게시판에 올리지 마세요.')
 
-    st.info('권장 순서 · 공공데이터 → DART → KIS → 필요할 때 KRX·관세청. 모든 API를 한 번에 준비할 필요는 없습니다.')
-    st.caption('세션 입력 API 키와 KIS 정보는 로그아웃 시 함께 삭제됩니다. 장기 사용이 필요한 공공 API만 본인의 Streamlit Secrets에 저장하세요.')
 elif page=='매매 습관':
     st.title('매매 습관')
     mode_label=st.radio('분석할 계좌',['실전 계좌','KIS 모의계좌'],horizontal=True,
