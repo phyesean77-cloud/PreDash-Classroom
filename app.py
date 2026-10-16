@@ -37,6 +37,7 @@ import predash.flow as flow_module
 flow_module=importlib.reload(flow_module)
 from predash.dashboard import overview, latest_held_buy
 from predash.indices import fetch_indices, IndexQuoteError
+from predash.investor_flow import fetch_investor_flow, InvestorFlowError
 from predash.visuals import compact_dashboard
 from predash.decision import comparison, brief, export_review, EvidenceError
 from predash.customs import exports, CustomsError
@@ -295,6 +296,10 @@ if page in ('오늘의 점검','내 계좌','관심종목','투자 근거'):
 @st.cache_data(ttl=60, show_spinner=False)
 def cached_korean_indices():
     return fetch_indices()
+
+@st.cache_data(ttl=600, show_spinner=False)
+def cached_investor_flow(asof):
+    return fetch_investor_flow(asof=asof)
 
 if page == '오늘의 점검':
     st.title('투자 대시보드')
